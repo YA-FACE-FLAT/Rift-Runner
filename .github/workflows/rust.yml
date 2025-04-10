@@ -5,6 +5,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 # Define environment variables
 env:
@@ -21,6 +24,44 @@ jobs:
         uses: actions/checkout@v4
 
       # Set up Rust toolchain
-      - name: Install Rust 0.8.5
-        uses: dtol
-
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      # Install system dependencies (for Bevy's audio and rendering)
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev \
+            pkg-config \
+            libx11-dev \
+            libxi-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev
+
+      # Cache Rust dependencies
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      # Check code formatting
+      - name: Run rustfmt
+        run: cargo fmt --all -- --check
+
+      # Run Clippy for linting
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      # Build the project
+      - name: Build
+        run: cargo build --verbose
+
+      # Run tests (if you add any later)
+      - name: Run tests
+        run: cargo test --verbose
+
+      # Optional: Build with Bevy audio disabled to ensure minimal config works
+      - name: Build without audio
+        run: cargo build --verbose --no-default-features --features "bevy_sprite bevy_text bevy_ui bevy_core_pipeline bevy_render bevy_asset png"
