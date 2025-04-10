@@ -9,4 +9,4 @@ rand = "0.8.5"
 
 [[bin]]
 name = "rift_runner"
-path = "src/main.rs"
+path = "main.rs"
