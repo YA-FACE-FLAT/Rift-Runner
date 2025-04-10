@@ -1,4 +1,3 @@
-name: CI
 
 # Trigger the workflow on pushes and pull requests to the main branch
 on:
