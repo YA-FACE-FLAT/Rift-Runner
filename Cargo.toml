@@ -1,5 +1,5 @@
 [package]
-name = "rift_runner"
+name = "src/main.rs"
 version = "0.1.0"
 edition = "2021"
 
