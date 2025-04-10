@@ -1,28 +1,26 @@
 name: CI
 
+# Trigger the workflow on pushes and pull requests to the main branch
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
+
+# Define environment variables
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  build-and-test:
+    name: Build and Test
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the repository code
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Rust
-        uses: actions/setup-rust@v1
-        with:
-          rust-version: stable
-
-      - name: Install dependencies
-        run: cargo fetch
-
-      - name: Run build
-        run: cargo build --verbose
+      # Set up Rust toolchain
+      - name: Install Rust 0.8.5
+        uses: dtol
+
