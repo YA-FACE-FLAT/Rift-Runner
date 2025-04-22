@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rift Runner: Core Shard Defense</title>
+  <style>
+    body { margin: 0; background: black; color: white; font-family: monospace; overflow: hidden; }
+    canvas { display: block; margin: 0 auto; background: #111; border: 2px solid aqua; }
+    #overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8); display: flex;
+      flex-direction: column; justify-content: center; align-items: center;
+      color: white; font-size: 24px; text-align: center;
+      z-index: 10;
+    }
+    #overlay.hidden { display: none; }
+    #overlay button {
+      margin-top: 20px; padding: 10px 20px; font-size: 18px;
+      border: 2px solid aqua; background: transparent; color: aqua; cursor: pointer;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay">
+    <div id="message">Rift Runner: Core Shard Defense</div>
+    <button id="startBtn">Start</button>
+  </div>
+  <canvas id="game"></canvas>
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 800; canvas.height = 600;
+
+    // Game states
+    let state = 'start'; // 'start', 'playing', 'levelComplete', 'gameOver'
+    let level = 1;
+    let score = 0;
+    let shardHealth = 100;
+    let enemiesDefeated = 0;
+
+    // Overlay elements
+    const overlay = document.getElementById('overlay');
+    const message = document.getElementById('message');
+    const startBtn = document.getElementById('startBtn');
+    startBtn.addEventListener('click', () => {
+      if (state === 'start' || state === 'levelComplete') initLevel();
+    });
+
+    function showOverlay(text, btnText) {
+      message.textContent = text;
+      startBtn.textContent = btnText;
+      overlay.classList.remove('hidden');
+    }
+    function hideOverlay() {
+      overlay.classList.add('hidden');
+    }
+
+    // Core Shard
+    const coreShard = { x: canvas.width / 2 - 25, y: canvas.height - 100, width: 50, height: 50 };
+
+    // Arrays
+    const enemies = [];
+    const projectiles = [];
+
+    // Sounds
+    const sfx = {
+      shoot: new Audio('assets/shoot.wav'),
+      hit: new Audio('assets/hit.wav'),
+      acid: new Audio('assets/acid.wav'),
+      levelUp: new Audio('assets/levelup.wav'),
+      gameOver: new Audio('assets/gameover.wav')
+    };
+    // Background music
+    const bgm = new Audio('assets/bgm.mp3');
+    bgm.loop = true;
+
+    class Ethereal {
+      constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = -50;
+        this.size = 40;
+        this.speed = 1 + Math.random() * (1 + level * 0.5);
+        this.jumpScare = Math.random() < 0.2;
+      }
+      update() {
+        this.y += this.speed;
+        if (this.y > canvas.height) this.respawn(true);
+      }
+      draw() {
+        ctx.fillStyle = 'limegreen';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        for (let i = -1; i <= 1; i++) {
+          ctx.beginPath();
+          ctx.arc(this.x + i * 8, this.y - 10, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      respawn(acidHit) {
+        this.x = Math.random() * canvas.width;
+        this.y = -50;
+        if (acidHit) {
+          shardHealth -= 5;
+          sfx.acid.play();
+          console.log('Overmind: Your shard is melting!');
+        }
+        if (this.jumpScare) console.log('Overmind: Boo! Strategy disrupted!');
+      }
+    }
+
+    class Projectile {
+      constructor(x, y) { this.x = x; this.y = y; this.speed = 7; }
+      update() { this.y -= this.speed; }
+      draw() { ctx.fillStyle = 'cyan'; ctx.fillRect(this.x, this.y, 4, 10); }
+    }
+
+    function initLevel() {
+      state = 'playing';
+      hideOverlay();
+      enemies.length = 0;
+      projectiles.length = 0;
+      enemiesDefeated = 0;
+      if (state === 'levelComplete') sfx.levelUp.play();
+      if (state === 'start') bgm.play();
+      gameLoop();
+    }
+
+    function spawnEnemy() {
+      if (Math.random() < 0.02 + level * 0.005) enemies.push(new Ethereal());
+    }
+
+    function fireProjectile() {
+      if (state !== 'playing') return;
+      projectiles.push(new Projectile(coreShard.x + coreShard.width / 2, coreShard.y));
+      sfx.shoot.play();
+    }
+    canvas.addEventListener('click', fireProjectile);
+
+    function detectCollisions() {
+      enemies.forEach((enemy, ei) => {
+        if (enemy.y + enemy.size > coreShard.y && Math.abs(enemy.x - coreShard.x) < 40) {
+          enemy.respawn(true);
+          enemies.splice(ei, 1);
+        } else {
+          projectiles.forEach((proj, pi) => {
+            if (Math.abs(proj.x - enemy.x) < 20 && Math.abs(proj.y - enemy.y) < 20) {
+              score++; enemiesDefeated++;
+              sfx.hit.play();
+              enemies.splice(ei, 1);
+              projectiles.splice(pi, 1);
+            }
+          });
+        }
+      });
+    }
+
+    function drawCoreShard() {
+      ctx.fillStyle = 'aqua';
+      ctx.fillRect(coreShard.x, coreShard.y, coreShard.width, coreShard.height);
+    }
+
+    function drawHUD() {
+      ctx.fillStyle = 'white';
+      ctx.font = '16px monospace';
+      ctx.fillText(`Score: ${score}`, 10, 20);
+      ctx.fillText(`Level: ${level}`, 10, 40);
+      ctx.fillText(`Integrity: ${shardHealth}%`, 10, 60);
+    }
+
+    function gameLoop() {
+      if (state !== 'playing') return;
+      if (shardHealth <= 0) return endGame();
+      if (enemiesDefeated >= level * 10) return nextLevel();
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawCoreShard();
+      spawnEnemy();
+      enemies.forEach(e => { e.update(); e.draw(); });
+      projectiles.forEach(p => { p.update(); p.draw(); });
+      detectCollisions();
+      drawHUD();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function nextLevel() {
+      state = 'levelComplete';
+      level++;
+      showOverlay(`Level ${level - 1} Clear!`, 'Next Level');
+    }
+
+    function endGame() {
+      state = 'gameOver';
+      bgm.pause();
+      sfx.gameOver.play();
+      showOverlay(`CORE SHARD LOST\nFinal Score: ${score}`, 'Restart');
+      level = 1; score = 0; shardHealth = 100;
+    }
+  </script>
+</body>
+</html>
